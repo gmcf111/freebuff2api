@@ -23,7 +23,7 @@ from .openai_compat import (
     build_upstream_payload,
     sanitize_stream_chunk,
 )
-from .models import CONTEXT_PRUNER_AGENT_ID, models_response, resolve_model
+from .models import CONTEXT_PRUNER_AGENT_ID, FreebuffModel, models_response, resolve_model
 from .sse import decode_sse_data, encode_sse
 
 
@@ -123,19 +123,20 @@ async def chat_completions(request: Request) -> Any:
 
     try:
         session = await _sessions(request).ensure_session(
-            model,
+            model_config.session_id,
             messages=body.get("messages"),
         )
         await _client(request).validate_agents()
         await _client(request).request_ad_chain(messages=body.get("messages"))
-        run = await _start_freebuff_run_chain(_client(request), model_config.agent_id)
+        run = await _start_freebuff_run_chain(_client(request), model_config)
         trace_session_id = str(uuid.uuid4())
         payload = build_upstream_payload(
             body,
             session=session,
-            run_id=run.run_id,
+            run_id=run.payload_run_id,
             client_id=settings.client_id,
             trace_session_id=trace_session_id,
+            upstream_model_id=model_config.upstream_id,
         )
         if settings.debug:
             logger.debug(
@@ -210,6 +211,23 @@ async def _stream_openai_chunks(
                     "chat stream ignored data=%s",
                     render_debug(data, settings.log_body_chars),
                 )
+    except CodebuffError as error:
+        logger.warning(
+            "chat stream failed run_id=%s: %s",
+            run.run_id,
+            error,
+            exc_info=settings.debug,
+        )
+        yield encode_sse(
+            {
+                "error": {
+                    "message": str(error),
+                    "type": "upstream_error",
+                    "code": "codebuff_error",
+                }
+            }
+        )
+        yield encode_sse("[DONE]")
     finally:
         _schedule_finalize_run(client, run, message_id)
 
@@ -251,8 +269,14 @@ async def _collect_completion(
 
 async def _start_freebuff_run_chain(
     client: CodebuffClient,
-    agent_id: str,
+    model: FreebuffModel | str,
 ) -> FreebuffRun:
+    if isinstance(model, str):
+        model = FreebuffModel(model, model)
+    if model.parent_agent_id:
+        return await _start_child_chat_run_chain(client, model)
+
+    agent_id = model.agent_id
     started_at = utc_now_iso()
     run_id = await client.start_run(agent_id)
     child_started_at = utc_now_iso()
@@ -280,6 +304,29 @@ async def _start_freebuff_run_chain(
         agent_id=agent_id,
         started_at=started_at,
         child_run_id=child_run_id,
+    )
+
+
+async def _start_child_chat_run_chain(
+    client: CodebuffClient,
+    model: FreebuffModel,
+) -> FreebuffRun:
+    assert model.parent_agent_id is not None
+
+    started_at = utc_now_iso()
+    parent_run_id = await client.start_run(model.parent_agent_id)
+    chat_started_at = utc_now_iso()
+    chat_run_id = await client.start_run(
+        model.agent_id,
+        ancestor_run_ids=[parent_run_id],
+    )
+    return FreebuffRun(
+        run_id=parent_run_id,
+        agent_id=model.parent_agent_id,
+        started_at=started_at,
+        child_run_id=chat_run_id,
+        chat_run_id=chat_run_id,
+        chat_started_at=chat_started_at,
     )
 
 
@@ -321,6 +368,26 @@ async def _finalize_run_with_client(
             message_id,
             run.started_at,
         )
+        if run.chat_run_id and run.chat_run_id != run.run_id:
+            await client.record_run_step(
+                run.chat_run_id,
+                step_number=1,
+                child_run_ids=[],
+                message_id=message_id,
+                start_time=run.chat_started_at or run.started_at,
+            )
+            await client.finish_run(run.chat_run_id, total_steps=2)
+            await client.record_run_step(
+                run.run_id,
+                step_number=1,
+                child_run_ids=[run.chat_run_id],
+                message_id=None,
+                start_time=run.started_at,
+            )
+            await client.finish_run(run.run_id, total_steps=2)
+            logger.debug("finalize parent/child run done run_id=%s", run.run_id)
+            return
+
         await client.record_run_step(
             run.run_id,
             step_number=2,

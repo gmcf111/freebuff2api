@@ -41,6 +41,12 @@ class FreebuffRun:
     agent_id: str
     started_at: str
     child_run_id: str | None = None
+    chat_run_id: str | None = None
+    chat_started_at: str | None = None
+
+    @property
+    def payload_run_id(self) -> str:
+        return self.chat_run_id or self.run_id
 
 
 class CodebuffClient:

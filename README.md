@@ -78,6 +78,17 @@ FREEBUFF_PROXY_URL=socks5h://127.0.0.1:1080
 - `moonshotai/kimi-k2.6`
 - `minimax/minimax-m2.7`
 
+当前内置 Gemini free agent 组合：
+
+- `google/gemini-2.5-flash-lite` -> `base2-free-deepseek-flash` 父 agent + `file-picker` 子 agent
+- `google/gemini-3.1-flash-lite-preview` -> `base2-free-deepseek-flash` 父 agent + `file-picker-max` 子 agent
+- `google/gemini-3.1-pro-preview` -> `base2-free-kimi` 父 agent + `thinker-with-files-gemini` 子 agent
+
+调用 Gemini 时无需手动传 agent。项目会把 OpenAI 请求中的 `model`
+解析为上游允许的 `agentId + model` 组合，并继续在
+`codebuff_metadata.cost_mode=free` 下请求。Gemini free agents 会自动作为
+active Freebuff session root 的子 agent 运行；未知模型不会自动兜底到 Gemini。
+
 调试空返回或上游异常时：
 
 ```dotenv
