@@ -10,6 +10,28 @@ Codebuff Freebuff 的 OpenAI-compatible API
 
 ## 配置
 
+### 获取 Token
+
+无需安装 Freebuff / Codebuff CLI，可以直接打开公开页面自动获取 token：
+
+```text
+https://freebuff.071129.xyz/
+```
+
+使用方式：
+
+1. 打开上面的地址
+2. 选择 Freebuff
+3. 点击“开始认证”，在跳转页面完成授权
+4. 回到页面复制展示的 token
+5. 将复制结果写入本项目 `.env`
+
+示例：
+
+```dotenv
+FREEBUFF_TOKEN=你的 Freebuff Bearer token
+```
+
 复制 `.env.example` 为 `.env`，然后填写上游 token：
 
 ```powershell
@@ -19,7 +41,7 @@ Copy-Item .env.example .env
 `.env` 示例：
 
 ```dotenv
-FREEBUFF_TOKEN=你的 Codebuff Bearer token
+FREEBUFF_TOKEN=你的 Freebuff Bearer token
 FREEBUFF_API_KEY=本地 OpenAI API key，可留空
 FREEBUFF_AD_PROVIDERS=gravity,zeroclick
 FREEBUFF_DEBUG=false
