@@ -139,6 +139,102 @@ curl -N http://127.0.0.1:8000/v1/chat/completions `
   }'
 ```
 
+## Docker
+
+### 本地构建镜像
+
+```powershell
+docker build -t freebuff2api .
+```
+
+### 运行容器
+
+```powershell
+docker run -d --name freebuff2api `
+  -p 8000:8000 `
+  --env-file .env `
+  freebuff2api
+```
+
+或者直接通过环境变量传递配置：
+
+```powershell
+docker run -d --name freebuff2api `
+  -p 8000:8000 `
+  -e FREEBUFF_TOKEN=your_token_here `
+  -e FREEBUFF_API_KEY=sk-local `
+  freebuff2api
+```
+
+### 多账号并发
+
+```powershell
+docker run -d --name freebuff2api `
+  -p 8000:8000 `
+  -e FREEBUFF_TOKEN=token-a,token-b,token-c `
+  freebuff2api
+```
+
+### Docker Compose
+
+创建 `compose.yml`：
+
+```yaml
+services:
+  freebuff2api:
+    build: .
+    container_name: freebuff2api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+```
+
+启动：
+
+```powershell
+docker compose up -d
+```
+
+### 使用 GitHub Actions 构建并推送至 GHCR
+
+项目已配置 GitHub Actions 工作流，支持手动触发构建并推送镜像到 GitHub Container Registry。
+
+触发方式：
+
+1. 在 GitHub 仓库页面点击 **Actions**
+2. 选择 **Build and Push Docker Image**
+3. 点击 **Run workflow**
+4. 填写参数：
+   - **branch**: 要构建的分支（默认 `main`）
+   - **version**: 镜像版本标签（可选，例如 `v1.0`、`v1.2.3`，留空则使用分支名作为标签）
+5. 点击 **Run workflow** 开始构建
+
+构建特性：
+
+- 多平台构建：自动构建 `linux/amd64` 和 `linux/arm64` 架构镜像
+- 层缓存：利用 GitHub Actions 缓存加速重复构建
+- 构建 attestation：自动生成构建 provenance 证书，提升镜像供应链安全
+- `latest` 标签：使用 `main` 分支构建时自动打上 `latest` 标签
+
+运行从 GHCR 拉取的镜像：
+
+```powershell
+docker run -d --name freebuff2api `
+  -p 8000:8000 `
+  -e FREEBUFF_TOKEN=your_token_here `
+  ghcr.io/gmcf111/freebuff2api:latest
+```
+
+### 健康检查
+
+容器内置健康检查（每 30 秒检测 `/healthz` 端点），Docker 会自动管理容器状态。
+
+### 运行非 root 用户
+
+容器默认以非 root 用户（`appuser`，UID 1000）运行，提升安全性。
+
 ## 感谢
 
 > [FreeBuff](https://freebuff.com)
