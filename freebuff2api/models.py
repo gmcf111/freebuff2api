@@ -29,6 +29,7 @@ FREEBUFF_MODELS: tuple[FreebuffModel, ...] = (
     FreebuffModel("minimax/minimax-m3", "base2-free-minimax-m3"),
     FreebuffModel("mimo/mimo-v2.5", "base2-free-mimo"),
     FreebuffModel("mimo/mimo-v2.5-pro", "base2-free-mimo-pro"),
+    FreebuffModel("z-ai/glm-5.2", "base2-free-glm"),
 )
 
 DEFAULT_MODEL = FREEBUFF_MODELS[0]
