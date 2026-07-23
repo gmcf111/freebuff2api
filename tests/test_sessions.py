@@ -134,10 +134,10 @@ class SessionManagerTests(unittest.IsolatedAsyncioTestCase):
             Settings(codebuff_token="token", local_api_key=None),
         )
 
-        session = await manager.ensure_session("moonshotai/kimi-k2.6")
+        session = await manager.ensure_session("moonshotai/kimi-k2.7-code")
 
         self.assertEqual(session.instance_id, "kimi-instance")
-        self.assertEqual(session.model, "moonshotai/kimi-k2.6")
+        self.assertEqual(session.model, "moonshotai/kimi-k2.7-code")
         self.assertEqual(
             client.calls,
             [
@@ -145,7 +145,7 @@ class SessionManagerTests(unittest.IsolatedAsyncioTestCase):
                 ("delete_session",),
                 ("request_ads", "gravity", [], "waiting_room"),
                 ("request_ads", "zeroclick", [], "waiting_room"),
-                ("create_session", "moonshotai/kimi-k2.6"),
+                ("create_session", "moonshotai/kimi-k2.7-code"),
             ],
         )
 
@@ -161,7 +161,7 @@ class SessionManagerTests(unittest.IsolatedAsyncioTestCase):
 
         async def acquire_second():
             started.set()
-            return await manager.acquire_session("moonshotai/kimi-k2.6")
+            return await manager.acquire_session("moonshotai/kimi-k2.7-code")
 
         task = asyncio.create_task(acquire_second())
         await started.wait()
@@ -176,7 +176,7 @@ class SessionManagerTests(unittest.IsolatedAsyncioTestCase):
         await first.aclose()
         second = await asyncio.wait_for(task, timeout=1)
         try:
-            self.assertEqual(second.session.model, "moonshotai/kimi-k2.6")
+            self.assertEqual(second.session.model, "moonshotai/kimi-k2.7-code")
             self.assertIn(
                 ("delete_session", "deepseek/deepseek-v4-flash"),
                 client.calls,
